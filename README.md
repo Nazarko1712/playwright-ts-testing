@@ -8,13 +8,13 @@ the API suites launch no browser at all.
 
 ## Prerequisites
 
-| Requirement | Notes |
-|---|---|
-| **Node.js 20+** | check with `node -v` |
-| **Chromium** | downloaded by the setup step below (~95 MB), not a system browser |
+| Requirement        | Notes                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| **Node.js 20+**    | check with `node -v`                                               |
+| **Chromium**       | downloaded by the setup step below (~95 MB), not a system browser  |
 | **Network access** | `demo.playwright.dev` (UI), `rickandmortyapi.com` (REST + GraphQL) |
-| **Port 8137 free** | the messaging specs start a local SSE/WebSocket server there |
-| **Ports 18833+** | one in-process MQTT broker per worker, `18833 + workerIndex` |
+| **Port 8137 free** | the messaging specs start a local SSE/WebSocket server there       |
+| **Ports 18833+**   | one in-process MQTT broker per worker, `18833 + workerIndex`       |
 
 No Docker, no database, no seed step.
 
@@ -96,7 +96,7 @@ tests/ui | api | graphql | messaging
 ### Playwright vs WebdriverIO
 
 |                    | WebdriverIO / Selenium                  | Playwright                                                          |
-|--------------------|-----------------------------------------|---------------------------------------------------------------------|
+| ------------------ | --------------------------------------- | ------------------------------------------------------------------- |
 | Element handle     | resolved immediately, can go stale      | `Locator` is **lazy**, re-queried per action                        |
 | Waiting            | `waitForDisplayed` / `waitForClickable` | auto-waits for attached + visible + stable + enabled + unobstructed |
 | Ambiguous selector | acts on the first match                 | **strict mode** throws                                              |
@@ -104,7 +104,7 @@ tests/ui | api | graphql | messaging
 | Protocol           | WebDriver HTTP (per-command round trip) | CDP, single bidirectional connection                                |
 
 No `StaleElementReferenceException` exists in Playwright, because a locator
-holds a *strategy*, not a node.
+holds a _strategy_, not a node.
 
 ### Trace viewer
 
@@ -121,7 +121,7 @@ Two bugs this suite actually hit on the first run, both worth telling:
 
 1. **Cross-test message bleed.** The server broadcasts to every socket, so
    `once('message')` picked up a frame produced by a different parallel test.
-   Fix: filter by topic *and* give each test a unique topic.
+   Fix: filter by topic _and_ give each test a unique topic.
 2. **`beforeAll` runs per worker.** With `fullyParallel`, a hard-coded broker
    port means every worker but the first dies with `EADDRINUSE`. Fix: derive
    the port from `workerIndex` — keeps parallelism instead of serialising.
@@ -180,3 +180,52 @@ stops a stray `test.only` from shrinking the run.
 `Dockerfile` uses `mcr.microsoft.com/playwright:v1.63.0-jammy`; the tag must
 match the client version or browsers and library disagree. `npm ci`, not
 `npm install`, for a lockfile-exact reproducible install.
+
+## Linting and reports
+
+```bash
+npm run lint          # ESLint 9, flat config
+npm run lint:fix      # auto-fixable rules only
+npm run format        # Prettier, writes
+npm run format:check  # Prettier, reports (this is what CI runs)
+npm run typecheck     # tsc --noEmit
+npm run report        # open the HTML report of the last run
+```
+
+The rules that matter in a test suite are not the style ones — Prettier owns
+those. These are the ones that catch **a test which cannot fail**:
+
+| Rule                                      | What it catches                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `@typescript-eslint/no-floating-promises` | an un-awaited assertion resolves to a truthy Promise, so the test passes having checked nothing |
+| `playwright/expect-expect`                | a test body with no assertion at all                                                            |
+| `playwright/no-conditional-in-test`       | a branch that can skip every assertion                                                          |
+| `playwright/no-wait-for-timeout`          | a fixed sleep standing in for the real condition                                                |
+| `playwright/no-skipped-test`              | coverage that silently disappeared                                                              |
+
+Two of the fifteen violations found when this was first wired up were real
+defects rather than style:
+
+- `sse.spec.ts` guarded its header assertions behind `if (!response) return`, so
+  the test passed having asserted **nothing** whenever the streaming request
+  failed to settle — which was always, because `APIRequestContext` buffers the
+  whole response and `/events` never closes. It now reads the headers through a
+  raw request and the assertions are unconditional.
+- `TodoPage.ts` carried an `expectTitles()` assertion, contradicting this repo's
+  own stated convention that a page object exposes state and never asserts on it.
+
+Reporting is Playwright's own: `list` locally, `blob` per CI shard, merged into
+one HTML report by the `merge-reports` job and uploaded as an artifact. On a
+failure the report carries the trace, so a red CI run is debuggable without
+reproducing it locally.
+
+### Where this runs in CI
+
+Linting and formatting are their **own job**, not steps inside the test job.
+They need no browser, no network and no secrets, and they finish in seconds, so
+as a separate job they run concurrently with the suite: a formatting failure
+does not wait behind a long test run, and a real test failure is not hidden
+behind a formatting failure. Both verdicts arrive on their own.
+
+CI runs the `--check` variants, never the formatter itself. A pipeline reports
+on the branch it was asked to verify; it does not rewrite it.

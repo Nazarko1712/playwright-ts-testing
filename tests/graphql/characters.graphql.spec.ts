@@ -98,11 +98,9 @@ test.describe('GraphQL', () => {
     });
 
     test('a wrong variable type is rejected before execution', async ({ request }) => {
-        const { body } = await gql(
-            request,
-            `query Bad($id: ID!) { character(id: $id) { name } }`,
-            { id: { nested: 'object' } },
-        );
+        const { body } = await gql(request, `query Bad($id: ID!) { character(id: $id) { name } }`, {
+            id: { nested: 'object' },
+        });
 
         expect(body.errors).toBeDefined();
     });

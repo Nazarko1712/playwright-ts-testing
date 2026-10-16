@@ -4,5 +4,11 @@
   "printWidth": 100,
   "tabWidth": 4,
   "trailingComma": "all",
-  "arrowParens": "always"
+  "arrowParens": "always",
+  "overrides": [
+    {
+      "files": ["*.json", "*.jsonc", "*.yml", "*.yaml", "*.md"],
+      "options": { "tabWidth": 2 }
+    }
+  ]
 }

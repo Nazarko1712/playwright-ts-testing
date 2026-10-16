@@ -66,5 +66,4 @@ export class TodoPage {
     async filterBy(name: 'All' | 'Active' | 'Completed'): Promise<void> {
         await this.page.getByRole('link', { name }).click();
     }
-
 }

@@ -139,10 +139,7 @@ test.describe('MQTT', () => {
             await subscribe(subscriber, 'store/123/orders/ready');
             const pending = nextMessage(subscriber);
 
-            publisher.publish(
-                'store/123/orders/ready',
-                JSON.stringify({ orderId: 7, table: 4 }),
-            );
+            publisher.publish('store/123/orders/ready', JSON.stringify({ orderId: 7, table: 4 }));
 
             const message = await pending;
             expect(message.topic).toBe('store/123/orders/ready');

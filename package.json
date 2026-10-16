@@ -19,7 +19,11 @@
     "test:debug": "playwright test --project=ui --debug",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit",
-    "server": "ts-node src/realtime-server.ts"
+    "server": "ts-node src/realtime-server.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
