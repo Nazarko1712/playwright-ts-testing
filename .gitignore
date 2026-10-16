@@ -7,3 +7,8 @@ playwright/.cache/
 .DS_Store
 .env
 .env.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
