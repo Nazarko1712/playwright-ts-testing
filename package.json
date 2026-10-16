@@ -1,0 +1,34 @@
+{
+  "name": "qa-playwright-ts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright + TypeScript test suite covering UI, REST, GraphQL and Pub/Sub layers",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test tests/ui",
+    "test:api": "playwright test tests/api",
+    "test:graphql": "playwright test tests/graphql",
+    "test:messaging": "playwright test tests/messaging",
+    "test:headed": "playwright test --project=ui --headed --workers=1",
+    "test:slow": "SLOWMO=500 playwright test --project=ui --headed --workers=1",
+    "test:uimode": "playwright test --project=ui --ui",
+    "test:debug": "playwright test --project=ui --debug",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit",
+    "server": "ts-node src/realtime-server.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.13",
+    "aedes": "^0.51.3",
+    "mqtt": "^5.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2",
+    "ws": "^8.18.0"
+  }
+}
