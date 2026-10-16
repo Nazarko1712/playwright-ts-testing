@@ -30,19 +30,43 @@ npx playwright install chromium  # browser binary
 
 ## Running
 
+**Headless** — the default, and what CI runs:
+
 ```bash
 npm test                # all four layers
 npm run test:ui         # UI only
 npm run test:api        # REST, no browser launched
 npm run test:graphql    # GraphQL
 npm run test:messaging  # MQTT + WebSocket + SSE
-npm run typecheck       # tsc --noEmit, strict
+```
 
-npm run test:headed     # watch the UI suite, one worker
-npm run test:uimode     # UI mode: timeline, DOM snapshots, pick locator
-npm run test:debug      # Playwright Inspector, step through
-npm run test:slow       # headed with a 500 ms delay between actions
+**Headed** — watch the browser:
+
+```bash
+npm run test:headed     # UI suite, visible browser, one worker
+npm run test:slow       # the same with a 500 ms delay between actions
+SLOWMO=1500 npm run test:headed
+```
+
+`--workers=1` matters in headed mode: without it `fullyParallel` opens four
+windows at once and nothing is watchable.
+
+**Debugging:**
+
+```bash
+npm run test:uimode     # UI mode — watch mode, timeline, DOM snapshot per
+                        # action, network, console, pick locator
+npm run test:debug      # Playwright Inspector, step through command by command
 npm run report          # open the HTML report
+npx playwright show-trace test-results/<...>/trace.zip
+```
+
+UI mode is the one to reach for first. `trace: 'on-first-retry'` records a full
+DOM, network and console timeline for a failing attempt, which is how a flake
+that only reproduces in CI gets diagnosed.
+
+```bash
+npm run typecheck       # tsc --noEmit, strict
 ```
 
 `slowMo` is a browser **launch option**, not a CLI flag — there is no
