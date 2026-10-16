@@ -1,24 +1,57 @@
-# qa-playwright-ts
+# playwright-ts-testing
 
-Playwright + TypeScript suite covering four layers: **UI**, **REST**, **GraphQL** and
-**Pub/Sub** (MQTT, WebSocket, SSE). 38 tests, all green.
+Playwright + TypeScript suite covering four layers in one project: **UI**,
+**REST**, **GraphQL** and **Pub/Sub** (MQTT, WebSocket, SSE).
 
-Built as targeted preparation for a Senior Test Automation role on a Node.js
-microservice eCommerce platform.
+**38 tests, 6 spec files.** Each layer runs as its own Playwright project, so
+the API suites launch no browser at all.
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Node.js 20+** | check with `node -v` |
+| **Chromium** | downloaded by the setup step below (~95 MB), not a system browser |
+| **Network access** | `demo.playwright.dev` (UI), `rickandmortyapi.com` (REST + GraphQL) |
+| **Port 8137 free** | the messaging specs start a local SSE/WebSocket server there |
+| **Ports 18833+** | one in-process MQTT broker per worker, `18833 + workerIndex` |
+
+No Docker, no database, no seed step.
+
+If port 8137 is already in use, the config's `webServer` readiness check never
+passes and every messaging test times out without explaining why.
+
+## Setup
 
 ```bash
-npm ci
-npx playwright install chromium
-npm test                # everything
-npm run test:ui         # Playwright UI, Chromium
-npm run test:api        # REST, no browser
+npm ci                           # exact lockfile install
+npx playwright install chromium  # browser binary
+```
+
+## Running
+
+```bash
+npm test                # all four layers
+npm run test:ui         # UI only
+npm run test:api        # REST, no browser launched
 npm run test:graphql    # GraphQL
 npm run test:messaging  # MQTT + WebSocket + SSE
 npm run typecheck       # tsc --noEmit, strict
+
+npm run test:headed     # watch the UI suite, one worker
+npm run test:uimode     # UI mode: timeline, DOM snapshots, pick locator
+npm run test:debug      # Playwright Inspector, step through
+npm run test:slow       # headed with a 500 ms delay between actions
+npm run report          # open the HTML report
 ```
 
+`slowMo` is a browser **launch option**, not a CLI flag — there is no
+`--slowmo`. It is wired to the `SLOWMO` environment variable instead, so
+`SLOWMO=1500 npm run test:headed` also works.
+
 `.npmrc` pins the public npm registry so the project does not resolve through a
-corporate CodeArtifact proxy.
+corporate CodeArtifact proxy — a common cause of `npm ci` hanging on a work
+machine.
 
 ## Layout
 
