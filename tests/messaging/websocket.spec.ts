@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { parseJson, rawDataToString } from '../../src/json';
 import WebSocket from 'ws';
 
 /**
@@ -58,7 +59,7 @@ function openBuffered(url: string, timeoutMs = 8_000): Promise<BufferedSocket> {
 
         socket.on('message', (data) => {
             try {
-                frames.push(JSON.parse(data.toString()) as Frame);
+                frames.push(parseJson<Frame>(rawDataToString(data)));
             } catch {
                 /* ignore non-JSON frames */
             }
@@ -85,7 +86,7 @@ async function waitForFrame(
     match: (frame: Frame) => boolean,
     timeoutMs = 8_000,
 ): Promise<Frame> {
-    await expect(async () => {
+    await expect(() => {
         expect(frames.some(match)).toBe(true);
     }).toPass({ timeout: timeoutMs });
 
@@ -152,7 +153,7 @@ test.describe('WebSocket /ws', () => {
                 await request.post('/publish', { data: { topic, payload: { n } } });
             }
 
-            await expect(async () => {
+            await expect(() => {
                 expect(frames.filter((f) => f.topic === topic)).toHaveLength(5);
             }).toPass({ timeout: 8_000 });
 

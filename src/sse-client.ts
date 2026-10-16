@@ -94,3 +94,38 @@ export function collectSseEvents(url: string, options: CollectOptions): Promise<
         });
     });
 }
+
+/**
+ * Read the response headers of a stream WITHOUT consuming its body.
+ *
+ * Playwright's `APIRequestContext` buffers the entire response before
+ * resolving, so `request.get('/events')` never settles against an endpoint that
+ * stays open by design — the symptom is a timeout that looks like the server is
+ * down.
+ *
+ * A raw request can capture the headers and hang up immediately, which is all
+ * the header assertions need.
+ */
+export function fetchStreamHeaders(
+    url: string,
+    timeoutMs = 10_000,
+): Promise<Record<string, string | string[] | undefined>> {
+    return new Promise((resolve, reject) => {
+        const req = get(url, { headers: { Accept: 'text/event-stream' } }, (res) => {
+            const headers = { ...res.headers };
+            req.destroy(); // Headers received; the body is not needed.
+            clearTimeout(timer);
+            resolve(headers);
+        });
+
+        const timer = setTimeout(() => {
+            req.destroy();
+            reject(new Error(`no response headers within ${timeoutMs}ms`));
+        }, timeoutMs);
+
+        req.on('error', (error) => {
+            clearTimeout(timer);
+            reject(error);
+        });
+    });
+}

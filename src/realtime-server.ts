@@ -15,6 +15,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { rawDataToString } from './json';
 
 const PORT = Number(process.env.REALTIME_PORT ?? 8137);
 const HOST = '127.0.0.1';
@@ -54,7 +55,14 @@ function readBody(req: IncomingMessage): Promise<string> {
     });
 }
 
-const server = createServer(async (req, res) => {
+/**
+ * The handler is async, but `createServer` expects a void-returning listener —
+ * passing an async function directly means a rejection becomes an UNHANDLED
+ * promise rejection and kills the process. `no-misused-promises` catches this.
+ *
+ * Wrapping it keeps the async body and guarantees a response on failure.
+ */
+const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`);
 
     if (url.pathname === '/health') {
@@ -82,7 +90,7 @@ const server = createServer(async (req, res) => {
         const raw = await readBody(req);
         let parsed: { topic?: string; payload?: unknown };
         try {
-            parsed = raw ? JSON.parse(raw) : {};
+            parsed = raw ? (JSON.parse(raw) as { topic?: string; payload?: unknown }) : {};
         } catch {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'invalid JSON body' }));
@@ -103,6 +111,16 @@ const server = createServer(async (req, res) => {
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
+};
+
+const server = createServer((req, res) => {
+    handle(req, res).catch((error: unknown) => {
+        process.stderr.write(`handler failed: ${String(error)}\n`);
+        if (!res.headersSent) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'internal error' }));
+        }
+    });
 });
 
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -113,7 +131,13 @@ wss.on('connection', (socket) => {
 
     socket.on('message', (data) => {
         // Echo back with a marker so a test can prove the round trip.
-        socket.send(JSON.stringify({ topic: 'echo', payload: data.toString(), seq: ++sequence }));
+        socket.send(
+            JSON.stringify({
+                topic: 'echo',
+                payload: rawDataToString(data),
+                seq: ++sequence,
+            }),
+        );
     });
 
     socket.on('close', () => wsClients.delete(socket));

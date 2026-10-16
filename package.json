@@ -22,13 +22,19 @@
     "server": "ts-node src/realtime-server.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.49.0",
     "@types/node": "^20.11.0",
     "@types/ws": "^8.5.13",
     "aedes": "^0.51.3",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-playwright": "^2.12.1",
     "mqtt": "^5.10.1",
+    "prettier": "^3.9.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.71.2",
     "ws": "^8.18.0"
   }
 }

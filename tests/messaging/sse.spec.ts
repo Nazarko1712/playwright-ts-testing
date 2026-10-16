@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { collectSseEvents } from '../../src/sse-client';
+import { parseJson } from '../../src/json';
+import { collectSseEvents, fetchStreamHeaders } from '../../src/sse-client';
 
 /**
  * Server-Sent Events.
@@ -29,6 +30,13 @@ import { collectSseEvents } from '../../src/sse-client';
  *   timeout. Never trigger first: the event can arrive before you subscribe and
  *   the test hangs. This ordering is the whole answer.
  */
+
+/** Shape published by the fixture server's /publish endpoint. */
+interface SseFrame {
+    topic: string;
+    payload: { step?: string } & Record<string, unknown>;
+    seq: number;
+}
 
 test.describe('SSE /events', () => {
     test('delivers a published message to a subscribed client', async ({ request, baseURL }) => {
@@ -60,7 +68,7 @@ test.describe('SSE /events', () => {
         }
 
         const received = await events;
-        const steps = received.map((e) => JSON.parse(e.data).payload.step);
+        const steps = received.map((e) => parseJson<SseFrame>(e.data).payload.step);
         expect(steps).toEqual(['created', 'paid', 'shipped']);
 
         // Monotonic ids let a consumer detect a gap (loss) or a repeat (dupe).
@@ -69,11 +77,19 @@ test.describe('SSE /events', () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    test('sends the documented event-stream headers', async ({ request }) => {
-        const response = await request.get('/events', { timeout: 3_000 }).catch(() => null);
-        if (!response) return; // streaming response may not settle; header check is best-effort
+    test('sends the documented event-stream headers', async ({ baseURL }) => {
+        /**
+         * Read through a raw request rather than Playwright's `request`.
+         *
+         * `APIRequestContext` buffers the entire response before resolving, so
+         * it never settles against an endpoint that stays open by design. The
+         * first version of this test hid that behind `if (!response) return`,
+         * which made it pass having asserted nothing —
+         * `playwright/no-conditional-in-test` caught it, and removing the early
+         * return exposed the real limitation.
+         */
+        const headers = await fetchStreamHeaders(`${baseURL}/events`);
 
-        const headers = response.headers();
         expect(headers['content-type']).toContain('text/event-stream');
         // Missing no-cache is a real production bug: a proxy buffers the stream
         // and the client receives nothing until the connection closes.
@@ -101,13 +117,31 @@ test.describe('SSE /events', () => {
             `${baseURL}/events`,
         );
 
-        // Give the subscription a moment, then publish.
-        await page.waitForTimeout(500);
+        /**
+         * Wait for the SUBSCRIPTION to exist, not for an arbitrary 500ms.
+         *
+         * The first version slept here, which contradicted this suite's own
+         * rule about fixed waits and was caught by
+         * `playwright/no-wait-for-timeout`. The real condition is observable:
+         * /health reports how many SSE clients are attached, so the test can
+         * poll that instead of guessing.
+         */
+        await expect
+            .poll(
+                async () => {
+                    const health = await page.request.get(`${baseURL}/health`);
+                    const body = (await health.json()) as { sseClients: number };
+                    return body.sseClients;
+                },
+                { timeout: 10_000, message: 'browser EventSource never attached' },
+            )
+            .toBeGreaterThan(0);
+
         await page.request.post(`${baseURL}/publish`, {
             data: { topic: 'greeting', payload: 'hello from the server' },
         });
 
         const data = await fromBrowser;
-        expect(JSON.parse(data).payload).toBe('hello from the server');
+        expect(parseJson<SseFrame>(data).payload).toBe('hello from the server');
     });
 });

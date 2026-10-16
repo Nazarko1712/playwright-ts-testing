@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
 
 /**
  * Page object for the TodoMVC demo app.
@@ -67,8 +67,4 @@ export class TodoPage {
         await this.page.getByRole('link', { name }).click();
     }
 
-    /** Web-first assertion: retries until it matches or the expect timeout fires. */
-    async expectTitles(titles: string[]): Promise<void> {
-        await expect(this.todoTitles).toHaveText(titles);
-    }
 }

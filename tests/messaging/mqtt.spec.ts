@@ -293,7 +293,7 @@ test.describe('MQTT', () => {
         // Buffered, because the flush happens right after CONNACK.
         const { client: resumed, messages } = await connectBuffered(sessionOptions);
         try {
-            await expect(async () => {
+            await expect(() => {
                 expect(messages.map((m) => m.payload)).toContain('sent while offline');
             }).toPass({ timeout: 6_000 });
 

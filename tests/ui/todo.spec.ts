@@ -11,6 +11,15 @@ import { TodoPage } from '../../src/pages/TodoPage';
  * share session state the way separate Selenium sessions would need to.
  */
 
+/**
+ * Assertions live in the test, never behind a page-object helper.
+ *
+ * An earlier version of this file called `todo.expectTitles([...])`, which put
+ * `expect` inside the page object. Two things went wrong: ESLint's
+ * `playwright/expect-expect` reported "test has no assertions" because it could
+ * not see through the helper, and a reader could not tell what a test verified
+ * without opening another file.
+ */
 test.describe('TodoMVC', () => {
     let todo: TodoPage;
 
@@ -22,7 +31,7 @@ test.describe('TodoMVC', () => {
     test('adds items and keeps their order', async () => {
         await todo.add('write playwright tests', 'learn typescript');
 
-        await todo.expectTitles(['write playwright tests', 'learn typescript']);
+        await expect(todo.todoTitles).toHaveText(['write playwright tests', 'learn typescript']);
         await expect(todo.counter).toHaveText('2 items left');
     });
 
@@ -33,10 +42,10 @@ test.describe('TodoMVC', () => {
         await expect(todo.itemByTitle('buy milk')).toHaveClass(/completed/);
 
         await todo.filterBy('Active');
-        await todo.expectTitles(['call the bank']);
+        await expect(todo.todoTitles).toHaveText(['call the bank']);
 
         await todo.filterBy('Completed');
-        await todo.expectTitles(['buy milk']);
+        await expect(todo.todoTitles).toHaveText(['buy milk']);
     });
 
     test('clear completed removes only completed items', async () => {
@@ -45,7 +54,7 @@ test.describe('TodoMVC', () => {
 
         await todo.clearCompleted.click();
 
-        await todo.expectTitles(['one', 'three']);
+        await expect(todo.todoTitles).toHaveText(['one', 'three']);
         await expect(todo.counter).toHaveText('2 items left');
     });
 
@@ -54,14 +63,14 @@ test.describe('TodoMVC', () => {
 
         await todo.remove('temporary');
 
-        await todo.expectTitles(['permanent']);
+        await expect(todo.todoTitles).toHaveText(['permanent']);
     });
 
     test('state survives a reload', async ({ page }) => {
         await todo.add('persisted item');
         await page.reload();
 
-        await todo.expectTitles(['persisted item']);
+        await expect(todo.todoTitles).toHaveText(['persisted item']);
     });
 
     test('an empty title is rejected', async () => {
